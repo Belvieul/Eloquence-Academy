@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Star, Menu, X, Volume2 } from 'lucide-react';
+import { BookOpen, Star, Menu, X, Volume2, Trophy, Award } from 'lucide-react';
 
 const EloquenceAcademy = () => {
   const [currentView, setCurrentView] = useState('daily');
@@ -14,6 +14,10 @@ const EloquenceAcademy = () => {
   const [showResult, setShowResult] = useState(false);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [quizComplete, setQuizComplete] = useState(false);
+  const [achievements, setAchievements] = useState([]);
+  const [showAchievement, setShowAchievement] = useState(null);
+  const [quizCompletionCount, setQuizCompletionCount] = useState(0);
+  const [visitDays, setVisitDays] = useState([]);
 
   const wordCollection = [
     { word: "Elucidate", pronunciation: "ih-LOO-si-dayt", definition: "To make something clear; to explain in detail", category: "Intellectual Discussion", examples: ["The professor took great care to elucidate the complex theoretical framework.", "Allow me to elucidate my position on this delicate matter."], context: "Ideal for academic discourse, formal presentations, and when clarifying nuanced positions in diplomatic settings." },
@@ -38,10 +42,28 @@ const EloquenceAcademy = () => {
     "Sophisticated Criticism"
   ];
 
+  const allAchievements = [
+    { id: 'first-word', name: 'First Steps', description: 'Save your first word', icon: '🎓', tier: 'bronze', requirement: 1, type: 'saved' },
+    { id: 'collector', name: 'Collector', description: 'Save 10 words', icon: '📚', tier: 'silver', requirement: 10, type: 'saved' },
+    { id: 'word-master', name: 'Word Master', description: 'Save 25 words', icon: '🌟', tier: 'gold', requirement: 25, type: 'saved' },
+    { id: 'eloquence-expert', name: 'Eloquence Expert', description: 'Save 50 words', icon: '👑', tier: 'gold', requirement: 50, type: 'saved' },
+    { id: 'quiz-novice', name: 'Quiz Novice', description: 'Complete your first quiz', icon: '🎯', tier: 'bronze', requirement: 1, type: 'quiz' },
+    { id: 'perfect-score', name: 'Perfect Score', description: 'Get 10/10 on a quiz', icon: '🔥', tier: 'gold', requirement: 10, type: 'perfect' },
+    { id: 'quiz-master', name: 'Quiz Master', description: 'Complete 5 quizzes', icon: '💯', tier: 'silver', requirement: 5, type: 'quiz' },
+    { id: 'dedicated', name: 'Dedicated Learner', description: 'Visit 7 days in a row', icon: '🚀', tier: 'gold', requirement: 7, type: 'streak' },
+    { id: 'explorer', name: 'Category Explorer', description: 'Save words from all 7 categories', icon: '⭐', tier: 'gold', requirement: 7, type: 'categories' }
+  ];
+
   useEffect(() => {
     loadSavedWords();
     setDailyWordFromDate();
+    loadAchievements();
+    trackVisit();
   }, []);
+
+  useEffect(() => {
+    checkAchievements();
+  }, [savedWords]);
 
   const loadSavedWords = async () => {
     try {
@@ -51,6 +73,95 @@ const EloquenceAcademy = () => {
       }
     } catch (error) {
       console.log('No saved words yet');
+    }
+  };
+
+  const loadAchievements = async () => {
+    try {
+      const result = await window.storage.get('achievements');
+      if (result && result.value) {
+        setAchievements(JSON.parse(result.value));
+      }
+      
+      const quizCount = await window.storage.get('quiz-count');
+      if (quizCount && quizCount.value) {
+        setQuizCompletionCount(parseInt(quizCount.value));
+      }
+      
+      const visits = await window.storage.get('visit-days');
+      if (visits && visits.value) {
+        setVisitDays(JSON.parse(visits.value));
+      }
+    } catch (error) {
+      console.log('No achievements yet');
+    }
+  };
+
+  const checkAndUnlockAchievement = async (achievementId) => {
+    if (achievements.includes(achievementId)) return;
+    
+    const achievement = allAchievements.find(a => a.id === achievementId);
+    if (!achievement) return;
+    
+    const newAchievements = [...achievements, achievementId];
+    setAchievements(newAchievements);
+    
+    try {
+      await window.storage.set('achievements', JSON.stringify(newAchievements));
+    } catch (error) {
+      console.error('Failed to save achievement');
+    }
+    
+    setShowAchievement(achievement);
+    setTimeout(() => setShowAchievement(null), 5000);
+  };
+
+  const checkAchievements = async () => {
+    if (savedWords.length >= 1 && !achievements.includes('first-word')) {
+      checkAndUnlockAchievement('first-word');
+    }
+    if (savedWords.length >= 10 && !achievements.includes('collector')) {
+      checkAndUnlockAchievement('collector');
+    }
+    if (savedWords.length >= 25 && !achievements.includes('word-master')) {
+      checkAndUnlockAchievement('word-master');
+    }
+    if (savedWords.length >= 50 && !achievements.includes('eloquence-expert')) {
+      checkAndUnlockAchievement('eloquence-expert');
+    }
+    
+    const uniqueCategories = new Set(savedWords.map(w => w.category));
+    if (uniqueCategories.size >= 7 && !achievements.includes('explorer')) {
+      checkAndUnlockAchievement('explorer');
+    }
+  };
+
+  const trackVisit = async () => {
+    const today = new Date().toDateString();
+    if (!visitDays.includes(today)) {
+      const newVisits = [...visitDays, today];
+      setVisitDays(newVisits);
+      
+      try {
+        await window.storage.set('visit-days', JSON.stringify(newVisits));
+      } catch (error) {
+        console.error('Failed to track visit');
+      }
+      
+      const sortedDays = newVisits.map(d => new Date(d)).sort((a, b) => a - b);
+      let streak = 1;
+      for (let i = sortedDays.length - 1; i > 0; i--) {
+        const diff = (sortedDays[i] - sortedDays[i - 1]) / (1000 * 60 * 60 * 24);
+        if (diff === 1) {
+          streak++;
+        } else {
+          break;
+        }
+      }
+      
+      if (streak >= 7 && !achievements.includes('dedicated')) {
+        checkAndUnlockAchievement('dedicated');
+      }
     }
   };
 
@@ -143,7 +254,29 @@ const EloquenceAcademy = () => {
     }
   };
 
-  const exitQuiz = () => {
+  const exitQuiz = async () => {
+    if (quizComplete) {
+      const newCount = quizCompletionCount + 1;
+      setQuizCompletionCount(newCount);
+      
+      try {
+        await window.storage.set('quiz-count', newCount.toString());
+      } catch (error) {
+        console.error('Failed to save quiz count');
+      }
+      
+      if (newCount >= 1 && !achievements.includes('quiz-novice')) {
+        checkAndUnlockAchievement('quiz-novice');
+      }
+      if (newCount >= 5 && !achievements.includes('quiz-master')) {
+        checkAndUnlockAchievement('quiz-master');
+      }
+      
+      if (score === quizQuestions.length && !achievements.includes('perfect-score')) {
+        checkAndUnlockAchievement('perfect-score');
+      }
+    }
+    
     setQuizMode(false);
     setQuizQuestions([]);
     setCurrentQuestion(0);
@@ -264,6 +397,13 @@ const EloquenceAcademy = () => {
               >
                 Take Quiz 🎯
               </button>
+              <button
+                onClick={() => setCurrentView('achievements')}
+                className={`transition-colors flex items-center space-x-2 ${currentView === 'achievements' ? 'text-amber-400' : 'text-gray-400 hover:text-amber-300'}`}
+              >
+                <Trophy className="w-4 h-4" />
+                <span>Achievements ({achievements.length}/{allAchievements.length})</span>
+              </button>
             </nav>
           </div>
         </div>
@@ -297,11 +437,30 @@ const EloquenceAcademy = () => {
             >
               Take Quiz 🎯
             </button>
+            <button
+              onClick={() => { setCurrentView('achievements'); setMenuOpen(false); }}
+              className={`text-left transition-colors flex items-center space-x-2 ${currentView === 'achievements' ? 'text-amber-400' : 'text-gray-400'}`}
+            >
+              <Trophy className="w-4 h-4" />
+              <span>Achievements ({achievements.length}/{allAchievements.length})</span>
+            </button>
           </nav>
         </div>
       )}
 
       <main className="max-w-6xl mx-auto px-6 py-12">
+        {showAchievement && (
+          <div className="fixed top-20 right-6 z-50 bg-gradient-to-br from-amber-500 to-amber-600 text-gray-900 px-6 py-4 rounded-lg shadow-2xl border-2 border-amber-300 animate-bounce">
+            <div className="flex items-center space-x-3">
+              <Award className="w-8 h-8" />
+              <div>
+                <p className="font-bold text-lg">Achievement Unlocked!</p>
+                <p className="text-sm">{showAchievement.icon} {showAchievement.name}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {quizMode && (
           <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-6">
             <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-8 max-w-3xl w-full border-2 border-amber-500 shadow-2xl">
@@ -471,6 +630,94 @@ const EloquenceAcademy = () => {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {currentView === 'achievements' && (
+          <div className="space-y-8">
+            <div className="text-center mb-12">
+              <h2 className="text-5xl font-serif text-amber-400 mb-2">Achievements</h2>
+              <p className="text-gray-400 mb-4">Unlock badges as you master vocabulary</p>
+              <p className="text-2xl text-amber-400 font-bold">{achievements.length} / {allAchievements.length} Unlocked</p>
+            </div>
+            
+            <div className="grid md:grid-cols-2 gap-6">
+              {allAchievements.map(achievement => {
+                const isUnlocked = achievements.includes(achievement.id);
+                const tierColors = {
+                  bronze: 'from-amber-700 to-amber-900',
+                  silver: 'from-gray-400 to-gray-600',
+                  gold: 'from-yellow-400 to-yellow-600'
+                };
+                
+                const tierBorders = {
+                  bronze: 'border-amber-700',
+                  silver: 'border-gray-400',
+                  gold: 'border-yellow-400'
+                };
+                
+                let progress = 0;
+                if (achievement.type === 'saved') {
+                  progress = Math.min((savedWords.length / achievement.requirement) * 100, 100);
+                } else if (achievement.type === 'quiz') {
+                  progress = Math.min((quizCompletionCount / achievement.requirement) * 100, 100);
+                } else if (achievement.type === 'perfect') {
+                  progress = isUnlocked ? 100 : 0;
+                } else if (achievement.type === 'categories') {
+                  const uniqueCategories = new Set(savedWords.map(w => w.category));
+                  progress = Math.min((uniqueCategories.size / achievement.requirement) * 100, 100);
+                } else if (achievement.type === 'streak') {
+                  const sortedDays = visitDays.map(d => new Date(d)).sort((a, b) => a - b);
+                  let streak = 1;
+                  for (let i = sortedDays.length - 1; i > 0; i--) {
+                    const diff = (sortedDays[i] - sortedDays[i - 1]) / (1000 * 60 * 60 * 24);
+                    if (diff === 1) {
+                      streak++;
+                    } else {
+                      break;
+                    }
+                  }
+                  progress = Math.min((streak / achievement.requirement) * 100, 100);
+                }
+                
+                return (
+                  <div
+                    key={achievement.id}
+                    className={`bg-gradient-to-br ${isUnlocked ? tierColors[achievement.tier] : 'from-gray-800 to-gray-900'} rounded-lg p-6 border-2 ${isUnlocked ? tierBorders[achievement.tier] : 'border-gray-700'} transition-all ${isUnlocked ? 'shadow-2xl' : 'opacity-60'}`}
+                  >
+                    <div className="flex items-start space-x-4">
+                      <div className="text-5xl">{achievement.icon}</div>
+                      <div className="flex-1">
+                        <h3 className="text-2xl font-serif text-white mb-1">{achievement.name}</h3>
+                        <p className="text-gray-200 mb-3">{achievement.description}</p>
+                        
+                        {!isUnlocked && (
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-sm text-gray-300">
+                              <span>Progress</span>
+                              <span>{Math.round(progress)}%</span>
+                            </div>
+                            <div className="w-full bg-gray-700 rounded-full h-2">
+                              <div
+                                className="bg-amber-400 h-2 rounded-full transition-all duration-500"
+                                style={{ width: `${progress}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {isUnlocked && (
+                          <div className="flex items-center space-x-2 text-white">
+                            <Award className="w-5 h-5" />
+                            <span className="font-bold">UNLOCKED!</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </main>
