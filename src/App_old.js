@@ -2,35 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { BookOpen, Star, Menu, X, Volume2, Trophy, Award } from 'lucide-react';
 import wordCollection from './wordCollection.js';
 
-// Storage helper that works with localStorage
-const storage = {
-  get: (key) => {
-    try {
-      const value = localStorage.getItem(key);
-      return value ? { value } : null;
-    } catch (err) {
-      console.error('Storage get error:', err);
-      return null;
-    }
-  },
-  set: (key, value) => {
-    try {
-      localStorage.setItem(key, value);
-      return { key, value };
-    } catch (err) {
-      console.error('Storage set error:', err);
-      return null;
-    }
-  }
-};
-
 const trackMorningVisit = async () => {
   const now = new Date();
   if (now.getHours() < 12) {
     try {
-      const result = storage.get('morning-visits');
+      const result = await window.storage.get('morning-visits');
       const count = result ? parseInt(result.value) : 0;
-      storage.set('morning-visits', (count + 1).toString());
+      await window.storage.set('morning-visits', (count + 1).toString());
     } catch (err) {
       console.log('Morning visit tracking skipped');
     }
@@ -41,12 +19,12 @@ const trackEarlyBird = async () => {
   const now = new Date();
   if (now.getHours() < 8) {
     try {
-      const result = storage.get('early-bird-visits');
+      const result = await window.storage.get('early-bird-visits');
       const visits = result ? JSON.parse(result.value) : [];
       const today = now.toDateString();
       if (!visits.includes(today)) {
         visits.push(today);
-        storage.set('early-bird-visits', JSON.stringify(visits));
+        await window.storage.set('early-bird-visits', JSON.stringify(visits));
       }
     } catch (err) {
       console.log('Early bird tracking skipped');
@@ -60,14 +38,14 @@ const trackWeekendVisit = async () => {
   
   if (day === 0 || day === 6) {
     try {
-      const result = storage.get('weekend-visits');
+      const result = await window.storage.get('weekend-visits');
       const visits = result ? JSON.parse(result.value) : [];
       const weekNumber = Math.ceil(now.getDate() / 7);
       const visitKey = `${now.getFullYear()}-${now.getMonth()}-W${weekNumber}-${day}`;
       
       if (!visits.includes(visitKey)) {
         visits.push(visitKey);
-        storage.set('weekend-visits', JSON.stringify(visits));
+        await window.storage.set('weekend-visits', JSON.stringify(visits));
       }
     } catch (err) {
       console.log('Weekend tracking skipped');
@@ -77,9 +55,9 @@ const trackWeekendVisit = async () => {
 
 const trackAudioUsage = async () => {
   try {
-    const result = storage.get('audio-usage-count');
+    const result = await window.storage.get('audio-usage-count');
     const count = result ? parseInt(result.value) : 0;
-    storage.set('audio-usage-count', (count + 1).toString());
+    await window.storage.set('audio-usage-count', (count + 1).toString());
   } catch (err) {
     console.log('Audio tracking skipped');
   }
@@ -87,9 +65,9 @@ const trackAudioUsage = async () => {
 
 const trackWordBrowsed = async () => {
   try {
-    const result = storage.get('words-browsed-count');
+    const result = await window.storage.get('words-browsed-count');
     const count = result ? parseInt(result.value) : 0;
-    storage.set('words-browsed-count', (count + 1).toString());
+    await window.storage.set('words-browsed-count', (count + 1).toString());
   } catch (err) {
     console.log('Browse tracking skipped');
   }
@@ -98,12 +76,12 @@ const trackWordBrowsed = async () => {
 const trackPerfectScoreStreak = async (score) => {
   try {
     if (score === 10) {
-      const result = storage.get('perfect-score-streak');
+      const result = await window.storage.get('perfect-score-streak');
       const streak = result ? parseInt(result.value) : 0;
-      storage.set('perfect-score-streak', (streak + 1).toString());
+      await window.storage.set('perfect-score-streak', (streak + 1).toString());
       return streak + 1;
     } else {
-      storage.set('perfect-score-streak', '0');
+      await window.storage.set('perfect-score-streak', '0');
       return 0;
     }
   } catch (err) {
@@ -114,9 +92,9 @@ const trackPerfectScoreStreak = async (score) => {
 const trackPerfectScoreCount = async (score) => {
   try {
     if (score === 10) {
-      const result = storage.get('perfect-scores-count');
+      const result = await window.storage.get('perfect-scores-count');
       const count = result ? parseInt(result.value) : 0;
-      storage.set('perfect-scores-count', (count + 1).toString());
+      await window.storage.set('perfect-scores-count', (count + 1).toString());
       return count + 1;
     }
     return 0;
@@ -127,9 +105,9 @@ const trackPerfectScoreCount = async (score) => {
 
 const trackFirstCorrectAnswer = async () => {
   try {
-    const result = storage.get('first-correct-answer');
+    const result = await window.storage.get('first-correct-answer');
     if (!result) {
-      storage.set('first-correct-answer', 'true');
+      await window.storage.set('first-correct-answer', 'true');
       return true;
     }
     return false;
@@ -227,7 +205,7 @@ const EloquenceAcademy = () => {
 
   const loadSavedWords = async () => {
     try {
-      const result = storage.get('saved-words');
+      const result = await window.storage.get('saved-words');
       if (result && result.value) {
         setSavedWords(JSON.parse(result.value));
       }
@@ -238,17 +216,17 @@ const EloquenceAcademy = () => {
 
   const loadAchievements = async () => {
     try {
-      const result = storage.get('achievements');
+      const result = await window.storage.get('achievements');
       if (result && result.value) {
         setAchievements(JSON.parse(result.value));
       }
       
-      const quizCount = storage.get('quiz-count');
+      const quizCount = await window.storage.get('quiz-count');
       if (quizCount && quizCount.value) {
         setQuizCompletionCount(parseInt(quizCount.value));
       }
       
-      const visits = storage.get('visit-days');
+      const visits = await window.storage.get('visit-days');
       if (visits && visits.value) {
         setVisitDays(JSON.parse(visits.value));
       }
@@ -267,7 +245,7 @@ const EloquenceAcademy = () => {
     setAchievements(newAchievements);
     
     try {
-      storage.set('achievements', JSON.stringify(newAchievements));
+      await window.storage.set('achievements', JSON.stringify(newAchievements));
     } catch (error) {
       console.error('Failed to save achievement');
     }
@@ -328,28 +306,28 @@ const EloquenceAcademy = () => {
     }
 
     try {
-      const morningResult = storage.get('morning-visits');
+      const morningResult = await window.storage.get('morning-visits');
       if (morningResult && parseInt(morningResult.value) >= 1 && !achievements.includes('morning_learner')) {
         checkAndUnlockAchievement('morning_learner');
       }
     } catch (err) {}
 
     try {
-      const browsedResult = storage.get('words-browsed-count');
+      const browsedResult = await window.storage.get('words-browsed-count');
       if (browsedResult && parseInt(browsedResult.value) >= 20 && !achievements.includes('speed_reader')) {
         checkAndUnlockAchievement('speed_reader');
       }
     } catch (err) {}
 
     try {
-      const audioResult = storage.get('audio-usage-count');
+      const audioResult = await window.storage.get('audio-usage-count');
       if (audioResult && parseInt(audioResult.value) >= 10 && !achievements.includes('pronunciation_pro')) {
         checkAndUnlockAchievement('pronunciation_pro');
       }
     } catch (err) {}
 
     try {
-      const weekendResult = storage.get('weekend-visits');
+      const weekendResult = await window.storage.get('weekend-visits');
       if (weekendResult) {
         const visits = JSON.parse(weekendResult.value);
         const weekVisits = {};
@@ -371,7 +349,7 @@ const EloquenceAcademy = () => {
     } catch (err) {}
 
     try {
-      const earlyResult = storage.get('early-bird-visits');
+      const earlyResult = await window.storage.get('early-bird-visits');
       if (earlyResult) {
         const visits = JSON.parse(earlyResult.value);
         if (visits.length >= 5 && !achievements.includes('early_bird')) {
@@ -409,7 +387,7 @@ const EloquenceAcademy = () => {
     }
 
     try {
-      const perfectResult = storage.get('perfect-scores-count');
+      const perfectResult = await window.storage.get('perfect-scores-count');
       if (perfectResult && parseInt(perfectResult.value) >= 3 && !achievements.includes('perfect_week')) {
         checkAndUnlockAchievement('perfect_week');
       }
@@ -419,7 +397,7 @@ const EloquenceAcademy = () => {
     } catch (err) {}
 
     try {
-      const streakResult = storage.get('perfect-score-streak');
+      const streakResult = await window.storage.get('perfect-score-streak');
       if (streakResult && parseInt(streakResult.value) >= 5 && !achievements.includes('perfectionist')) {
         checkAndUnlockAchievement('perfectionist');
       }
@@ -454,7 +432,7 @@ const EloquenceAcademy = () => {
       setVisitDays(newVisits);
       
       try {
-        storage.set('visit-days', JSON.stringify(newVisits));
+        await window.storage.set('visit-days', JSON.stringify(newVisits));
       } catch (error) {
         console.error('Failed to track visit');
       }
@@ -496,7 +474,7 @@ const EloquenceAcademy = () => {
     setSavedWords(newSavedWords);
     
     try {
-      storage.set('saved-words', JSON.stringify(newSavedWords));
+      await window.storage.set('saved-words', JSON.stringify(newSavedWords));
     } catch (error) {
       console.error('Failed to save words:', error);
     }
@@ -582,7 +560,7 @@ const EloquenceAcademy = () => {
       setQuizCompletionCount(newCount);
       
       try {
-        storage.set('quiz-count', newCount.toString());
+        await window.storage.set('quiz-count', newCount.toString());
       } catch (error) {
         console.error('Failed to save quiz count');
       }
@@ -664,7 +642,7 @@ const EloquenceAcademy = () => {
           <div>
             <h3 className="text-gray-400 uppercase text-xs tracking-wider mb-2">Examples</h3>
             <div className="space-y-2">
-              {wordData.examples && wordData.examples.map((example, idx) => (
+              {wordData.examples.map((example, idx) => (
                 <p key={idx} className="text-gray-300 italic pl-4 border-l-2 border-amber-700">
                   {example}
                 </p>
@@ -800,7 +778,7 @@ const EloquenceAcademy = () => {
 
         {quizMode && (
           <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-6">
-            <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-8 max-w-3xl w-full border-2 border-amber-500 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-8 max-w-3xl w-full border-2 border-amber-500 shadow-2xl">
               {!quizComplete ? (
                 <>
                   <div className="flex justify-between items-center mb-8">
