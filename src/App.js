@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BookOpen, Star, Menu, X, Volume2, Trophy, Award } from 'lucide-react';
 import wordCollection from './wordCollection.js';
+import InstallPrompt from './InstallPrompt';
 
 // Storage helper that works with localStorage
 const storage = {
@@ -695,6 +696,9 @@ const EloquenceAcademy = () => {
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
+      {/* Install Prompt for PWA */}
+      <InstallPrompt />
+      
       <header className="bg-gradient-to-r from-gray-900 to-gray-800 border-b border-amber-900 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
