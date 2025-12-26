@@ -222,10 +222,6 @@ const EloquenceAcademy = () => {
     trackWeekendVisit();
   }, []);
 
-  useEffect(() => {
-    checkAchievements();
-  }, [savedWords, quizCompletionCount, visitDays]);
-
   const loadSavedWords = async () => {
     try {
       const result = storage.get('saved-words');
@@ -498,6 +494,8 @@ const EloquenceAcademy = () => {
     
     try {
       storage.set('saved-words', JSON.stringify(newSavedWords));
+      // Check for new achievements after saving
+      setTimeout(() => checkAchievements(), 100);
     } catch (error) {
       console.error('Failed to save words:', error);
     }
