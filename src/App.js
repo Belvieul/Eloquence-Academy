@@ -114,14 +114,18 @@ const trackPerfectScoreStreak = async (score) => {
 
 const trackPerfectScoreCount = async (score) => {
   try {
+    console.log('📊 Tracking perfect score count, score:', score);
     if (score === 10) {
       const result = storage.get('perfect-scores-count');
       const count = result ? parseInt(result.value) : 0;
-      storage.set('perfect-scores-count', (count + 1).toString());
-      return count + 1;
+      const newCount = count + 1;
+      storage.set('perfect-scores-count', newCount.toString());
+      console.log('💾 Perfect score count updated:', count, '→', newCount);
+      return newCount;
     }
     return 0;
   } catch (err) {
+    console.error('❌ Error tracking perfect score:', err);
     return 0;
   }
 };
@@ -129,12 +133,16 @@ const trackPerfectScoreCount = async (score) => {
 const trackFirstCorrectAnswer = async () => {
   try {
     const result = storage.get('first-correct-answer');
+    console.log('🎯 Checking first correct answer, exists:', !!result);
     if (!result) {
       storage.set('first-correct-answer', 'true');
+      console.log('✅ First correct answer recorded!');
       return true;
     }
+    console.log('⏭️ Already had first correct answer');
     return false;
   } catch (err) {
+    console.error('❌ Error tracking first correct:', err);
     return false;
   }
 };
@@ -212,14 +220,23 @@ const EloquenceAcademy = () => {
   ];
 
   useEffect(() => {
-    loadSavedWords();
-    setDailyWordFromDate();
-    loadAchievements();
-    trackVisit();
+    const initializeApp = async () => {
+      await loadSavedWords();
+      await setDailyWordFromDate();
+      await loadAchievements();
+      await trackVisit();
+      
+      await trackMorningVisit();
+      await trackEarlyBird();
+      await trackWeekendVisit();
+      
+      // Check achievements after everything loads
+      setTimeout(() => {
+        checkAchievements();
+      }, 500);
+    };
     
-    trackMorningVisit();
-    trackEarlyBird();
-    trackWeekendVisit();
+    initializeApp();
   }, []);
 
   const loadSavedWords = async () => {
@@ -255,92 +272,221 @@ const EloquenceAcademy = () => {
   };
 
   const checkAndUnlockAchievement = async (achievementId) => {
-    if (achievements.includes(achievementId)) return;
+    console.log('🔓 Attempting to unlock:', achievementId);
+    
+    // Get current achievements from BOTH state AND localStorage
+    const storedAchievements = storage.get('achievements');
+    const currentAchievements = storedAchievements 
+      ? JSON.parse(storedAchievements.value) 
+      : achievements;
+    
+    console.log('📋 Current achievements (from storage):', currentAchievements);
+    console.log('📋 State achievements:', achievements);
+    
+    if (currentAchievements.includes(achievementId)) {
+      console.log('⏭️ Already have this achievement, skipping');
+      return;
+    }
     
     const achievement = allAchievements.find(a => a.id === achievementId);
-    if (!achievement) return;
+    if (!achievement) {
+      console.log('❌ Achievement not found:', achievementId);
+      return;
+    }
     
-    const newAchievements = [...achievements, achievementId];
+    const newAchievements = [...currentAchievements, achievementId];
+    console.log('💾 Saving new achievements:', newAchievements);
     setAchievements(newAchievements);
     
     try {
-      storage.set('achievements', JSON.stringify(newAchievements));
+      const result = storage.set('achievements', JSON.stringify(newAchievements));
+      console.log('✅ Saved to localStorage:', result);
+      
+      // Verify it saved
+      const verify = storage.get('achievements');
+      console.log('🔍 Verification read:', verify);
     } catch (error) {
-      console.error('Failed to save achievement');
+      console.error('❌ Failed to save achievement:', error);
     }
     
     setShowAchievement(achievement);
     setTimeout(() => setShowAchievement(null), 5000);
   };
 
-  const checkAchievements = async () => {
-    // ORIGINAL CHECKS
-    if (savedWords.length >= 1 && !achievements.includes('first-word')) {
+  // Check achievements with PROVIDED data (avoids stale state issues)
+  const checkAchievementsWithData = async (wordsArray) => {
+    console.log('🔍 === CHECKING ACHIEVEMENTS (with fresh data) ===');
+    
+    // Get current achievements from localStorage (FRESH!)
+    const storedAchievements = storage.get('achievements');
+    const currentAchievements = storedAchievements 
+      ? JSON.parse(storedAchievements.value) 
+      : [];
+    
+    console.log('📊 Fresh Data:', {
+      savedWords: wordsArray.length,
+      currentAchievements: currentAchievements.length,
+      achievementsList: currentAchievements
+    });
+    
+    // Word count achievements - using localStorage data!
+    if (wordsArray.length >= 1 && !currentAchievements.includes('first-word')) {
+      console.log('✨ Unlocking: First Steps');
       checkAndUnlockAchievement('first-word');
     }
-    if (savedWords.length >= 10 && !achievements.includes('collector')) {
+    if (wordsArray.length >= 10 && !currentAchievements.includes('collector')) {
+      console.log('✨ Unlocking: Collector');
       checkAndUnlockAchievement('collector');
     }
-    if (savedWords.length >= 25 && !achievements.includes('word-master')) {
+    if (wordsArray.length >= 15 && !currentAchievements.includes('word_hoarder')) {
+      console.log('✨ Unlocking: Word Hoarder');
+      checkAndUnlockAchievement('word_hoarder');
+    }
+    if (wordsArray.length >= 25 && !currentAchievements.includes('word-master')) {
+      console.log('✨ Unlocking: Word Master');
       checkAndUnlockAchievement('word-master');
     }
-    if (savedWords.length >= 50 && !achievements.includes('eloquence-expert')) {
+    if (wordsArray.length >= 50 && !currentAchievements.includes('eloquence-expert')) {
+      console.log('✨ Unlocking: Eloquence Expert');
+      checkAndUnlockAchievement('eloquence-expert');
+    }
+    if (wordsArray.length >= 75 && !currentAchievements.includes('vocabulary_titan')) {
+      console.log('✨ Unlocking: Vocabulary Titan');
+      checkAndUnlockAchievement('vocabulary_titan');
+    }
+    if (wordsArray.length >= 100 && !currentAchievements.includes('vocabulary_master')) {
+      console.log('✨ Unlocking: Vocabulary Master');
+      checkAndUnlockAchievement('vocabulary_master');
+    }
+    
+    // Category achievements
+    const uniqueCategories = new Set(wordsArray.map(w => w.category));
+    if (uniqueCategories.size >= 7 && !currentAchievements.includes('explorer')) {
+      console.log('✨ Unlocking: Category Explorer');
+      checkAndUnlockAchievement('explorer');
+    }
+    
+    const categoryList = ['Intellectual Discussion', 'Refined Compliments', 'Literary Expression', 
+                          'Eloquent Agreement', 'Nuanced Emotions', 'Diplomatic Discourse', 'Sophisticated Criticism'];
+    
+    // Category specialist
+    for (const category of categoryList) {
+      const categoryWords = wordsArray.filter(w => w.category === category);
+      if (categoryWords.length >= 5 && !currentAchievements.includes('category_specialist')) {
+        console.log('✨ Unlocking: Category Specialist');
+        checkAndUnlockAchievement('category_specialist');
+        break;
+      }
+    }
+    
+    // Category master
+    let categoriesWithTen = 0;
+    for (const category of categoryList) {
+      const categoryWords = wordsArray.filter(w => w.category === category);
+      if (categoryWords.length >= 10) categoriesWithTen++;
+    }
+    if (categoriesWithTen >= 3 && !currentAchievements.includes('category_master')) {
+      console.log('✨ Unlocking: Category Master');
+      checkAndUnlockAchievement('category_master');
+    }
+    
+    // Complete mastery
+    let categoriesWithFifteen = 0;
+    for (const category of categoryList) {
+      const categoryWords = wordsArray.filter(w => w.category === category);
+      if (categoryWords.length >= 15) categoriesWithFifteen++;
+    }
+    if (categoriesWithFifteen >= 7 && !currentAchievements.includes('complete_mastery')) {
+      console.log('✨ Unlocking: Complete Mastery');
+      checkAndUnlockAchievement('complete_mastery');
+    }
+  };
+
+  const checkAchievements = async () => {
+    console.log('🔍 === CHECKING ACHIEVEMENTS ===');
+    
+    // Get current achievements from localStorage (FRESH!)
+    const storedAchievements = storage.get('achievements');
+    const currentAchievements = storedAchievements 
+      ? JSON.parse(storedAchievements.value) 
+      : [];
+    
+    console.log('📊 Data:', {
+      savedWords: savedWords.length,
+      currentAchievements: currentAchievements.length,
+      achievementsList: currentAchievements,
+      quizCount: quizCompletionCount,
+      visitDays: visitDays.length
+    });
+    
+    // ORIGINAL CHECKS - using localStorage data!
+    if (savedWords.length >= 1 && !currentAchievements.includes('first-word')) {
+      console.log('✨ Unlocking: First Steps');
+      checkAndUnlockAchievement('first-word');
+    }
+    if (savedWords.length >= 10 && !currentAchievements.includes('collector')) {
+      checkAndUnlockAchievement('collector');
+    }
+    if (savedWords.length >= 25 && !currentAchievements.includes('word-master')) {
+      checkAndUnlockAchievement('word-master');
+    }
+    if (savedWords.length >= 50 && !currentAchievements.includes('eloquence-expert')) {
       checkAndUnlockAchievement('eloquence-expert');
     }
     
     const uniqueCategories = new Set(savedWords.map(w => w.category));
-    if (uniqueCategories.size >= 7 && !achievements.includes('explorer')) {
+    if (uniqueCategories.size >= 7 && !currentAchievements.includes('explorer')) {
       checkAndUnlockAchievement('explorer');
     }
 
     // NEW ACHIEVEMENT CHECKS
-    if (savedWords.length >= 15 && !achievements.includes('word_hoarder')) {
+    if (savedWords.length >= 15 && !currentAchievements.includes('word_hoarder')) {
       checkAndUnlockAchievement('word_hoarder');
     }
-    if (savedWords.length >= 75 && !achievements.includes('vocabulary_titan')) {
+    if (savedWords.length >= 75 && !currentAchievements.includes('vocabulary_titan')) {
       checkAndUnlockAchievement('vocabulary_titan');
     }
-    if (savedWords.length >= 100 && !achievements.includes('vocabulary_master')) {
+    if (savedWords.length >= 100 && !currentAchievements.includes('vocabulary_master')) {
       checkAndUnlockAchievement('vocabulary_master');
     }
-    if (quizCompletionCount >= 10 && !achievements.includes('quiz_enthusiast')) {
+    if (quizCompletionCount >= 10 && !currentAchievements.includes('quiz_enthusiast')) {
       checkAndUnlockAchievement('quiz_enthusiast');
     }
-    if (quizCompletionCount >= 25 && !achievements.includes('quiz_legend')) {
+    if (quizCompletionCount >= 25 && !currentAchievements.includes('quiz_legend')) {
       checkAndUnlockAchievement('quiz_legend');
     }
-    if (quizCompletionCount >= 50 && !achievements.includes('quiz_champion')) {
+    if (quizCompletionCount >= 50 && !currentAchievements.includes('quiz_champion')) {
       checkAndUnlockAchievement('quiz_champion');
     }
 
     const streak = calculateStreak();
-    if (streak >= 3 && !achievements.includes('consistent_learner')) {
+    if (streak >= 3 && !currentAchievements.includes('consistent_learner')) {
       checkAndUnlockAchievement('consistent_learner');
     }
-    if (streak >= 14 && !achievements.includes('two_week_streak')) {
+    if (streak >= 14 && !currentAchievements.includes('two_week_streak')) {
       checkAndUnlockAchievement('two_week_streak');
     }
-    if (streak >= 30 && !achievements.includes('month_long_streak')) {
+    if (streak >= 30 && !currentAchievements.includes('month_long_streak')) {
       checkAndUnlockAchievement('month_long_streak');
     }
 
     try {
       const morningResult = storage.get('morning-visits');
-      if (morningResult && parseInt(morningResult.value) >= 1 && !achievements.includes('morning_learner')) {
+      if (morningResult && parseInt(morningResult.value) >= 1 && !currentAchievements.includes('morning_learner')) {
         checkAndUnlockAchievement('morning_learner');
       }
     } catch (err) {}
 
     try {
       const browsedResult = storage.get('words-browsed-count');
-      if (browsedResult && parseInt(browsedResult.value) >= 20 && !achievements.includes('speed_reader')) {
+      if (browsedResult && parseInt(browsedResult.value) >= 20 && !currentAchievements.includes('speed_reader')) {
         checkAndUnlockAchievement('speed_reader');
       }
     } catch (err) {}
 
     try {
       const audioResult = storage.get('audio-usage-count');
-      if (audioResult && parseInt(audioResult.value) >= 10 && !achievements.includes('pronunciation_pro')) {
+      if (audioResult && parseInt(audioResult.value) >= 10 && !currentAchievements.includes('pronunciation_pro')) {
         checkAndUnlockAchievement('pronunciation_pro');
       }
     } catch (err) {}
@@ -361,7 +507,7 @@ const EloquenceAcademy = () => {
           days.includes('0') && days.includes('6')
         );
         
-        if (hasWeekendWarrior && !achievements.includes('weekend_warrior')) {
+        if (hasWeekendWarrior && !currentAchievements.includes('weekend_warrior')) {
           checkAndUnlockAchievement('weekend_warrior');
         }
       }
@@ -371,7 +517,7 @@ const EloquenceAcademy = () => {
       const earlyResult = storage.get('early-bird-visits');
       if (earlyResult) {
         const visits = JSON.parse(earlyResult.value);
-        if (visits.length >= 5 && !achievements.includes('early_bird')) {
+        if (visits.length >= 5 && !currentAchievements.includes('early_bird')) {
           checkAndUnlockAchievement('early_bird');
         }
       }
@@ -381,7 +527,7 @@ const EloquenceAcademy = () => {
                           'Eloquent Agreement', 'Nuanced Emotions', 'Diplomatic Discourse', 'Sophisticated Criticism'];
     for (const category of categoryList) {
       const categoryWords = savedWords.filter(w => w.category === category);
-      if (categoryWords.length >= 5 && !achievements.includes('category_specialist')) {
+      if (categoryWords.length >= 5 && !currentAchievements.includes('category_specialist')) {
         checkAndUnlockAchievement('category_specialist');
         break;
       }
@@ -392,7 +538,7 @@ const EloquenceAcademy = () => {
       const categoryWords = savedWords.filter(w => w.category === category);
       if (categoryWords.length >= 10) categoriesWithTen++;
     }
-    if (categoriesWithTen >= 3 && !achievements.includes('category_master')) {
+    if (categoriesWithTen >= 3 && !currentAchievements.includes('category_master')) {
       checkAndUnlockAchievement('category_master');
     }
 
@@ -401,30 +547,30 @@ const EloquenceAcademy = () => {
       const categoryWords = savedWords.filter(w => w.category === category);
       if (categoryWords.length >= 15) categoriesWithFifteen++;
     }
-    if (categoriesWithFifteen >= 7 && !achievements.includes('complete_mastery')) {
+    if (categoriesWithFifteen >= 7 && !currentAchievements.includes('complete_mastery')) {
       checkAndUnlockAchievement('complete_mastery');
     }
 
     try {
       const perfectResult = storage.get('perfect-scores-count');
-      if (perfectResult && parseInt(perfectResult.value) >= 3 && !achievements.includes('perfect_week')) {
+      if (perfectResult && parseInt(perfectResult.value) >= 3 && !currentAchievements.includes('perfect_week')) {
         checkAndUnlockAchievement('perfect_week');
       }
-      if (perfectResult && parseInt(perfectResult.value) >= 10 && !achievements.includes('flawless_record')) {
+      if (perfectResult && parseInt(perfectResult.value) >= 10 && !currentAchievements.includes('flawless_record')) {
         checkAndUnlockAchievement('flawless_record');
       }
     } catch (err) {}
 
     try {
       const streakResult = storage.get('perfect-score-streak');
-      if (streakResult && parseInt(streakResult.value) >= 5 && !achievements.includes('perfectionist')) {
+      if (streakResult && parseInt(streakResult.value) >= 5 && !currentAchievements.includes('perfectionist')) {
         checkAndUnlockAchievement('perfectionist');
       }
     } catch (err) {}
 
     const totalAchievements = allAchievements.length - 1;
     const unlockedCount = achievements.filter(a => a !== 'scholar_supreme').length;
-    if (unlockedCount >= totalAchievements && !achievements.includes('scholar_supreme')) {
+    if (unlockedCount >= totalAchievements && !currentAchievements.includes('scholar_supreme')) {
       checkAndUnlockAchievement('scholar_supreme');
     }
   };
@@ -446,29 +592,51 @@ const EloquenceAcademy = () => {
 
   const trackVisit = async () => {
     const today = new Date().toDateString();
+    
+    console.log('📅 Tracking visit for:', today);
+    console.log('📅 Current visitDays:', visitDays);
+    
     if (!visitDays.includes(today)) {
       const newVisits = [...visitDays, today];
       setVisitDays(newVisits);
       
       try {
         storage.set('visit-days', JSON.stringify(newVisits));
+        console.log('💾 Saved visit days:', newVisits);
+        
+        // Calculate streak with NEW data
+        const sortedDays = newVisits.map(d => new Date(d)).sort((a, b) => a - b);
+        let streak = 1;
+        for (let i = sortedDays.length - 1; i > 0; i--) {
+          const diff = (sortedDays[i] - sortedDays[i - 1]) / (1000 * 60 * 60 * 24);
+          if (diff === 1) {
+            streak++;
+          } else {
+            break;
+          }
+        }
+        
+        console.log('🔥 Current streak:', streak);
+        
+        // Check streak achievements immediately with fresh data
+        if (streak >= 3 && !currentAchievements.includes('consistent_learner')) {
+          console.log('✨ Unlocking: Consistent Learner');
+          checkAndUnlockAchievement('consistent_learner');
+        }
+        if (streak >= 7 && !currentAchievements.includes('dedicated')) {
+          console.log('✨ Unlocking: Dedicated Learner');
+          checkAndUnlockAchievement('dedicated');
+        }
+        if (streak >= 14 && !currentAchievements.includes('two_week_streak')) {
+          console.log('✨ Unlocking: Two Week Streak');
+          checkAndUnlockAchievement('two_week_streak');
+        }
+        if (streak >= 30 && !currentAchievements.includes('month_long_streak')) {
+          console.log('✨ Unlocking: Month Long Streak');
+          checkAndUnlockAchievement('month_long_streak');
+        }
       } catch (error) {
         console.error('Failed to track visit');
-      }
-      
-      const sortedDays = newVisits.map(d => new Date(d)).sort((a, b) => a - b);
-      let streak = 1;
-      for (let i = sortedDays.length - 1; i > 0; i--) {
-        const diff = (sortedDays[i] - sortedDays[i - 1]) / (1000 * 60 * 60 * 24);
-        if (diff === 1) {
-          streak++;
-        } else {
-          break;
-        }
-      }
-      
-      if (streak >= 7 && !achievements.includes('dedicated')) {
-        checkAndUnlockAchievement('dedicated');
       }
     }
   };
@@ -494,8 +662,10 @@ const EloquenceAcademy = () => {
     
     try {
       storage.set('saved-words', JSON.stringify(newSavedWords));
-      // Check for new achievements after saving
-      setTimeout(() => checkAchievements(), 100);
+      
+      // Check achievements with the NEW data immediately
+      console.log('💾 Saved! New word count:', newSavedWords.length);
+      checkAchievementsWithData(newSavedWords);
     } catch (error) {
       console.error('Failed to save words:', error);
     }
@@ -558,7 +728,15 @@ const EloquenceAcademy = () => {
       setScore(score + 1);
       
       const isFirst = await trackFirstCorrectAnswer();
-      if (isFirst && !achievements.includes('quiz_starter')) {
+      
+      // Get current achievements from localStorage
+      const storedAchievements = storage.get('achievements');
+      const currentAchievements = storedAchievements 
+        ? JSON.parse(storedAchievements.value) 
+        : [];
+      
+      if (isFirst && !currentAchievements.includes('quiz_starter')) {
+        console.log('✨ Unlocking: Quiz Starter (first correct answer)');
         checkAndUnlockAchievement('quiz_starter');
       }
     }
@@ -578,33 +756,62 @@ const EloquenceAcademy = () => {
     if (quizComplete) {
       const finalScore = score;
       const newCount = quizCompletionCount + 1;
+      
+      console.log('🎯 Quiz Complete!');
+      console.log('📊 Final Score:', finalScore);
+      console.log('📊 Total Quizzes:', newCount);
+      
       setQuizCompletionCount(newCount);
       
       try {
         storage.set('quiz-count', newCount.toString());
+        console.log('💾 Saved quiz count:', newCount);
       } catch (error) {
         console.error('Failed to save quiz count');
       }
       
-      if (newCount >= 1 && !achievements.includes('quiz-novice')) {
+      // Check quiz completion achievements
+      if (newCount >= 1) {
+        console.log('✨ Checking Quiz Novice...');
         checkAndUnlockAchievement('quiz-novice');
       }
-      if (newCount >= 5 && !achievements.includes('quiz-master')) {
+      if (newCount >= 5) {
+        console.log('✨ Checking Quiz Master...');
         checkAndUnlockAchievement('quiz-master');
       }
-      
-      if (score === quizQuestions.length && !achievements.includes('perfect-score')) {
-        checkAndUnlockAchievement('perfect-score');
+      if (newCount >= 10) {
+        console.log('✨ Checking Quiz Enthusiast...');
+        checkAndUnlockAchievement('quiz_enthusiast');
       }
-
-      if (finalScore >= 8 && !achievements.includes('impressive_score')) {
+      if (newCount >= 25) {
+        console.log('✨ Checking Quiz Legend...');
+        checkAndUnlockAchievement('quiz_legend');
+      }
+      if (newCount >= 50) {
+        console.log('✨ Checking Quiz Champion...');
+        checkAndUnlockAchievement('quiz_champion');
+      }
+      
+      // Check score-based achievements
+      if (finalScore >= 8) {
+        console.log('✨ Checking Impressive Score (8+)...');
         checkAndUnlockAchievement('impressive_score');
+      }
+      
+      if (finalScore === 10) {
+        console.log('✨ Checking Perfect Score (10/10)...');
+        checkAndUnlockAchievement('perfect-score');
       }
 
       await trackPerfectScoreStreak(finalScore);
       await trackPerfectScoreCount(finalScore);
       
-      checkAchievements();
+      console.log('🔍 Quiz tracking complete, checking for more achievements...');
+      
+      // Give a tiny delay to ensure localStorage has saved
+      setTimeout(() => {
+        checkAchievements();
+      }, 100);
     }
     
     setQuizMode(false);
